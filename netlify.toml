@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Proxy para o n8n (evita CORS no browser em produção)
+[[redirects]]
+  from = "/api/n8n/*"
+  to = "https://nat11106.app.n8n.cloud/:splat"
+  status = 200
+  force = true
+
+# SPA (React Router / rotas do Vite)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

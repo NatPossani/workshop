@@ -52,3 +52,27 @@ O chat também grava voz pelo microfone (máx. 90s).
 npm run build
 npm run preview
 ```
+
+## Deploy no Netlify
+
+Site de exemplo: [worshopn8n.netlify.app](https://worshopn8n.netlify.app/)
+
+O `netlify.toml` já define build, proxy `/api/n8n` → n8n cloud e fallback SPA.
+
+### Variáveis no painel Netlify
+
+**Site configuration → Environment variables** (scope *Build*):
+
+| Variável | Valor (produção) |
+|----------|------------------|
+| `VITE_N8N_WEBHOOK_URL` | `/api/n8n/webhook/553deedb-f1a2-4b1f-8833-82a9e51096c5` |
+
+Use o path `/api/n8n/webhook/...` (não a URL completa): o Netlify faz proxy para `https://nat11106.app.n8n.cloud` e evita CORS.
+
+Depois de alterar variáveis, faça **Deploy → Trigger deploy** (o Vite só lê `VITE_*` no build).
+
+### Checklist
+
+- [ ] Workflow n8n **ativo** (URL de produção `webhook/`, não `webhook-test/`)
+- [ ] `VITE_N8N_WEBHOOK_URL` definida no Netlify
+- [ ] Novo deploy após mudar env
