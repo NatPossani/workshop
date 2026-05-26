@@ -85,4 +85,6 @@ Depois de alterar variáveis, faça **Deploy → Trigger deploy** (o Vite só l�
 
 - [ ] Workflow n8n **ativo** (URL de produção `webhook/`, não `webhook-test/`)
 - [ ] `VITE_N8N_WEBHOOK_URL` definida no Netlify
-- [ ] Novo deploy após mudar env
+- [ ] **Netlify Blobs** ativo no site (Storage → Blobs) — necessário para `/api/audio/upload`
+- [ ] Novo deploy após mudar código ou env
+- [ ] Teste: `POST https://SEU-SITE.netlify.app/api/audio/upload` deve responder JSON (não HTML 404)
