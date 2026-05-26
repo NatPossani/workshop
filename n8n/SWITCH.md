@@ -37,7 +37,30 @@ Guia para o **Switch** no n8n, alinhado ao JSON que **este chat** envia.
 }
 ```
 
-No n8n, o body pode aparecer em `$json.body` (depende da versão). Por isso use primeiro um nó **Code** para normalizar.
+No n8n Cloud, o Webhook costuma expor o payload **dentro de `body`**, não na raiz:
+
+```json
+{
+  "body": {
+    "messageType": "text",
+    "type": "text",
+    "content": "testar de novo",
+    "message": "testar de novo",
+    "sessionId": "..."
+  }
+}
+```
+
+Neste caso **`{{ $json.messageType }}` no Switch não existe** → o fluxo “trava” no Switch (nenhuma regra casa).
+
+Há **duas** formas corretas (escolha uma):
+
+| Abordagem | Switch | Edit Fields (`userMessage`) |
+|-----------|--------|-----------------------------|
+| **A — Code Normalizar** (recomendado) | `{{ $json.messageType }}` | `{{ $json.content }}` |
+| **B — Sem Code** (direto no `body`) | `{{ $json.body.type }}` | `{{ $json.body.content }}` |
+
+O chat envia `type` e `messageType` (ambos `text` ou `audio`). Pode usar só `{{ $json.body.type }}` na abordagem B.
 
 ---
 
@@ -103,11 +126,13 @@ Depois disto, o Switch usa sempre `{{ $json.messageType }}`.
 | **Mode** | Rules |
 | **Rename Output** | Ativado |
 
+### Se usou Code Normalizar (abordagem A)
+
 ### Routing Rule 1 — Texto
 
 | Campo | Valor |
 |-------|--------|
-| Value 1 | `{{ $json.messageType }}` |
+| Value 1 | `{{ $json.messageType }}` ou `{{ $json.type }}` |
 | Operation | is equal to |
 | Value 2 | `text` |
 | Output name | `Texto` |
@@ -116,10 +141,19 @@ Depois disto, o Switch usa sempre `{{ $json.messageType }}`.
 
 | Campo | Valor |
 |-------|--------|
-| Value 1 | `{{ $json.messageType }}` |
+| Value 1 | `{{ $json.messageType }}` ou `{{ $json.type }}` |
 | Operation | is equal to |
 | Value 2 | `audio` |
 | Output name | `Audio` |
+
+### Se **não** usou Code (abordagem B — payload em `body`)
+
+| Regra | Value 1 | Value 2 |
+|-------|---------|---------|
+| Texto | `{{ $json.body.type }}` | `text` |
+| Áudio | `{{ $json.body.type }}` | `audio` |
+
+Ative **Fallback Output** no Switch para ver no chat quando nenhuma regra casar.
 
 Saídas:
 
@@ -135,10 +169,10 @@ Switch
 
 Nó **Edit Fields** (ou Set) na saída **Texto**:
 
-| Campo | Valor |
-|-------|--------|
-| `userMessage` | `{{ $json.content }}` |
-| `sessionId` | `{{ $json.sessionId }}` |
+| Campo | Com Code Normalizar | Sem Code (só `body`) |
+|-------|---------------------|----------------------|
+| `userMessage` | `{{ $json.content }}` | `{{ $json.body.content }}` |
+| `sessionId` | `{{ $json.sessionId }}` | `{{ $json.body.sessionId }}` |
 
 Ligar à entrada **1** do **Merge**.
 
@@ -262,8 +296,8 @@ curl -X POST "https://SUA-URL/webhook/workshop-chat" \
 
 ## Checklist
 
-- [ ] Code Normalizar antes do Switch
-- [ ] Switch: `messageType` = `text` | `audio`
+- [ ] Switch e Edit Fields usam `$json.body.*` **ou** Code Normalizar + `$json.*` (não misturar)
+- [ ] Switch: `type` / `messageType` = `text` | `audio`
 - [ ] Ramo texto: `userMessage` = `content`
 - [ ] Ramo áudio: Transcribe → `userMessage` = `text`
 - [ ] Merge → AI Agent → Respond `{ "reply": "..." }`

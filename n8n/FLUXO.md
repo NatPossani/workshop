@@ -237,6 +237,7 @@ Resposta esperada: `{"reply":"..."}`
 
 | Problema | Solução |
 |----------|---------|
+| Switch “trava” / sem saída | Campos estão em `$json.body` → use `{{ $json.body.type }}` ou Code Normalizar (ver [SWITCH.md](./SWITCH.md)) |
 | CORS no browser | Use proxy no `.env` (`VITE_N8N_PROXY_TARGET`) |
 | Timeout | Transcrição + IA podem demorar; aumente timeout do webhook se self-hosted |
 | `reply` vazio | Confirme expressão no Respond to Webhook (`output` vs `text`) |
