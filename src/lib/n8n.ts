@@ -1,6 +1,18 @@
 import type { ChatRequest, ChatResponse } from "../types";
 
+/** Resposta imediata do n8n quando o Webhook não espera o nó Respond to Webhook */
+const WEBHOOK_STARTED_ACK = "Workflow was started";
+
 function extractReply(data: ChatResponse): string {
+  if (
+    typeof data.message === "string" &&
+    data.message.trim() === WEBHOOK_STARTED_ACK
+  ) {
+    throw new Error(
+      'O n8n respondeu cedo demais. No nó Webhook: Response Mode → "Using Respond to Webhook Node". No fim do fluxo, ligue o nó Respond to Webhook com { "reply": "..." }.'
+    );
+  }
+
   if (typeof data.reply === "string" && data.reply.trim()) return data.reply;
   if (typeof data.message === "string" && data.message.trim()) return data.message;
   if (typeof data.output === "string" && data.output.trim()) return data.output;
