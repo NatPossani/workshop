@@ -13,7 +13,7 @@ Normalizar entrada (Code)
     ↓
 Switch ou IF (messageType: text | audio)
     ├─ Texto → Edit Fields (userMessage)
-    └─ Áudio → Base64 → binário → Transcribe → Edit Fields (userMessage)
+    └─ Áudio → HTTP GET (audio.url) → Transcribe → Edit Fields (userMessage)
     ↓
 Merge
     ↓
@@ -63,13 +63,14 @@ const message = String(body.message ?? '').trim();
 const sessionId = String(body.sessionId ?? 'default');
 const audio = body.audio;
 
-const hasAudio = Boolean(audio?.data);
+const hasAudio = Boolean(audio?.url || audio?.data);
 
 return [{
   json: {
     message,
     sessionId,
     hasAudio,
+    audioUrl: audio?.url ?? null,
     audioMimeType: audio?.mimeType ?? 'audio/webm',
     audioFileName: audio?.fileName ?? 'voice.webm',
     audioBase64: audio?.data ?? null,
@@ -106,7 +107,17 @@ Ligue à entrada **1** do **Merge** (ver passo 6).
 
 ## Passo 4b — Ramo ÁUDIO (true)
 
-### 4b.1 — Code: Base64 → binário
+### 4b.1 — HTTP Request: baixar áudio pela URL
+
+| Campo | Valor |
+|-------|--------|
+| Method | GET |
+| URL | `{{ $json.audioUrl }}` |
+| Response Format | File |
+
+> Ou use `n8n/code/download-audio-url.js` no ramo com Switch.
+
+### 4b.1 (legado base64) — Code: Base64 → binário
 
 ```javascript
 const item = $input.first();
@@ -202,7 +213,7 @@ Se a pergunta for sobre n8n, explica com um exemplo prático.
 
 Ver JSON completo em **[SWITCH.md](./SWITCH.md)**.
 
-Resumo: `messageType` + `content` + `sessionId`; áudio em `audio.data` (base64, sem URL).
+Resumo: `messageType` + `content` + `sessionId`; áudio em `audio.url` (HTTPS, temporário).
 
 ---
 

@@ -5,7 +5,7 @@ const message = String(body.message ?? "").trim();
 const sessionId = String(body.sessionId ?? "default");
 const audio = body.audio;
 
-const hasAudio = Boolean(audio?.data);
+const hasAudio = Boolean(audio?.url || audio?.data);
 
 return [
   {
@@ -13,6 +13,7 @@ return [
       message,
       sessionId,
       hasAudio,
+      audioUrl: audio?.url ?? null,
       audioMimeType: audio?.mimeType ?? "audio/webm",
       audioFileName: audio?.fileName ?? "voice.webm",
       audioBase64: audio?.data ?? null,

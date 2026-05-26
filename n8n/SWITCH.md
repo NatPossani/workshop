@@ -2,7 +2,7 @@
 
 Guia para o **Switch** no n8n, alinhado ao JSON que **este chat** envia.
 
-> O guia de WhatsApp usa `phone` + `content` como URL. **Aqui o áudio vem em base64** no body — **não precisa de HTTP Request** para baixar ficheiro.
+> O áudio é publicado pelo chat em `/api/audio/upload` e o webhook recebe **`audio.url`** (HTTPS). O ramo áudio no n8n precisa de **HTTP Request** (ou Code) para baixar o ficheiro antes da transcrição.
 
 ---
 
@@ -30,7 +30,7 @@ Guia para o **Switch** no n8n, alinhado ao JSON que **este chat** envia.
   "message": "",
   "sessionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "audio": {
-    "data": "BASE64_SEM_PREFIXO_data:audio/webm...",
+    "url": "https://worshopn8n.netlify.app/api/audio/550e8400-e29b-41d4-a716-446655440000",
     "mimeType": "audio/webm",
     "fileName": "voice-1716638400000.webm"
   }
@@ -74,7 +74,7 @@ Code — Normalizar
 Switch
 ├── Texto ──► Edit Fields (userMessage) ──┐
 │                                         ├──► Merge ──► AI Agent ──► Respond to Webhook
-└── Audio ──► Code (base64→binário) ──► Transcribe ──► Edit Fields (userMessage) ──┘
+└── Audio ──► HTTP Request (GET audio.url) ──► Transcribe ──► Edit Fields (userMessage) ─┘
 ```
 
 ---
@@ -95,11 +95,11 @@ Switch
 const body = $json.body ?? $json;
 
 let messageType = String(
-  body.messageType ?? body.type ?? (body.audio?.data ? "audio" : "text")
+  body.messageType ?? body.type ?? (body.audio?.url || body.audio?.data ? "audio" : "text")
 ).toLowerCase();
 
 if (messageType !== "text" && messageType !== "audio") {
-  messageType = body.audio?.data ? "audio" : "text";
+  messageType = body.audio?.url || body.audio?.data ? "audio" : "text";
 }
 
 const content = String(body.content ?? body.message ?? "").trim();
@@ -182,33 +182,17 @@ Ligar à entrada **1** do **Merge**.
 
 ---
 
-## Passo 5 — Ramo Áudio (sem HTTP Request)
+## Passo 5 — Ramo Áudio (baixar URL → transcrever)
 
-### 5.1 Code: base64 → binário
+### 5.1 HTTP Request — baixar o áudio
 
-```javascript
-const item = $input.first();
-const { audio, sessionId } = item.json;
+| Campo | Valor |
+|-------|--------|
+| Method | GET |
+| URL | `{{ $json.audio.url }}` |
+| Response Format | **File** |
 
-if (!audio?.data) {
-  throw new Error("Áudio sem dados base64");
-}
-
-const buffer = Buffer.from(audio.data, "base64");
-
-const binary = await this.helpers.prepareBinaryData(
-  buffer,
-  audio.fileName ?? "voice.webm",
-  audio.mimeType ?? "audio/webm"
-);
-
-return [
-  {
-    json: { sessionId },
-    binary: { data: binary },
-  },
-];
-```
+> Alternativa: nó **Code** com o script em `n8n/code/download-audio-url.js`.
 
 ### 5.2 OpenAI — Transcribe a Recording
 
@@ -279,8 +263,8 @@ Se o Agent devolver noutro campo, use `text` ou o que aparecer no output do nó.
 | Identificador | `phone` | `sessionId` |
 | Tipo | `messageType` | `messageType` (igual) |
 | Texto | `content` | `content` + `message` |
-| Áudio | URL em `content` | `audio.data` (base64) |
-| Download | HTTP Request GET | **Não precisa** |
+| Áudio | URL em `content` | `audio.url` (HTTPS) |
+| Download | HTTP Request GET | **HTTP Request GET** em `audio.url` |
 
 ---
 
@@ -294,7 +278,7 @@ curl -X POST "https://SUA-URL/webhook/workshop-chat" \
   -d "{\"messageType\":\"text\",\"type\":\"text\",\"content\":\"Olá\",\"message\":\"Olá\",\"sessionId\":\"test-1\"}"
 ```
 
-**Áudio:** use o chat com microfone (envia base64 automaticamente).
+**Áudio:** use o chat com microfone (publica em `/api/audio` e envia `audio.url`).
 
 ---
 

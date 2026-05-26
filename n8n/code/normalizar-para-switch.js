@@ -3,11 +3,13 @@
 const body = $json.body ?? $json;
 
 let messageType = String(
-  body.messageType ?? body.type ?? (body.audio?.data ? "audio" : "text")
+  body.messageType ??
+    body.type ??
+    (body.audio?.url || body.audio?.data ? "audio" : "text")
 ).toLowerCase();
 
 if (messageType !== "text" && messageType !== "audio") {
-  messageType = body.audio?.data ? "audio" : "text";
+  messageType = body.audio?.url || body.audio?.data ? "audio" : "text";
 }
 
 const content = String(body.content ?? body.message ?? "").trim();

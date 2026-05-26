@@ -1,22 +1,5 @@
 const MAX_SECONDS = 90;
 
-export function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result;
-      if (typeof result !== "string") {
-        reject(new Error("Falha ao converter áudio."));
-        return;
-      }
-      const base64 = result.split(",")[1] ?? "";
-      resolve(base64);
-    };
-    reader.onerror = () => reject(new Error("Falha ao ler o áudio."));
-    reader.readAsDataURL(blob);
-  });
-}
-
 function pickMimeType(): string {
   if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
     return "audio/webm;codecs=opus";

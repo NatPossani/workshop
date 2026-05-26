@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { blobToBase64, extensionForMime } from "../lib/audio";
+import { extensionForMime } from "../lib/audio";
 import { sendToN8n } from "../lib/n8n";
 import { buildAudioPayload, buildTextPayload } from "../lib/payload";
+import { uploadAudio } from "../lib/uploadAudio";
 import { getSessionId, resetSessionId } from "../lib/session";
 import type { Message, MessageKind } from "../types";
 
@@ -98,14 +99,31 @@ export function useChat() {
 
       const mimeType = blob.type || "audio/webm";
       const ext = extensionForMime(mimeType);
-      const base64 = await blobToBase64(blob);
+      const fileName = `voice-${Date.now()}.${ext}`;
       const audioUrl = URL.createObjectURL(blob);
+
+      setError(null);
+      setIsLoading(true);
+      let publicUrl: string;
+      try {
+        publicUrl = await uploadAudio(blob, fileName);
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Falha ao publicar o áudio.";
+        setError(message);
+        setMessages((prev) => [
+          ...prev,
+          createMessage("assistant", message),
+        ]);
+        setIsLoading(false);
+        return;
+      }
 
       await handleReply(
         buildAudioPayload(sessionRef.current, {
-          data: base64,
+          url: publicUrl,
           mimeType,
-          fileName: `voice-${Date.now()}.${ext}`,
+          fileName,
         }),
         "Áudio enviado",
         "audio",

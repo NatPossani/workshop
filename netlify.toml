@@ -2,6 +2,9 @@
   command = "npm run build"
   publish = "dist"
 
+# Áudio temporário (Netlify Function — ver netlify/functions/audio.ts)
+# O path é também declarado em export const config no handler.
+
 # Proxy para o n8n (evita CORS no browser em produção)
 [[redirects]]
   from = "/api/n8n/*"

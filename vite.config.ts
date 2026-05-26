@@ -1,12 +1,13 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import { audioApiPlugin } from "./vite-plugin-audio-api";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "");
   const n8nTarget = env.VITE_N8N_PROXY_TARGET;
 
   return {
-    plugins: [react()],
+    plugins: [react(), audioApiPlugin()],
     server: {
       proxy: n8nTarget
         ? {

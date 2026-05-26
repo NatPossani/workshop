@@ -12,7 +12,8 @@ export interface Message {
 }
 
 export interface AudioPayload {
-  data: string;
+  /** URL pública HTTPS para o n8n baixar o ficheiro */
+  url: string;
   mimeType: string;
   fileName: string;
 }
@@ -25,7 +26,7 @@ export interface ChatRequest {
   content: string;
   message: string;
   sessionId: string;
-  /** Base64 — ramo áudio (sem URL; não precisa HTTP Request) */
+  /** Áudio publicado temporariamente (URL acessível pelo n8n) */
   audio?: AudioPayload;
 }
 

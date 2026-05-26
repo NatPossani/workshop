@@ -18,7 +18,7 @@ Abra `http://localhost:5173`.
 - **Com Switch (texto/áudio):** **[n8n/SWITCH.md](./n8n/SWITCH.md)** ← use este se está a montar o agente com Switch  
 - **Com IF:** **[n8n/FLUXO.md](./n8n/FLUXO.md)**
 
-Resumo: Webhook → normalizar → Switch/IF → transcrever áudio (base64) → Merge → AI Agent → `{ "reply": "..." }`.
+Resumo: Webhook → normalizar → Switch/IF → baixar áudio (URL) → transcrever → Merge → AI Agent → `{ "reply": "..." }`.
 
 ## Variáveis de ambiente
 
@@ -42,9 +42,19 @@ VITE_N8N_WEBHOOK_URL=/api/n8n/webhook/workshop-chat
 
 ## Body enviado pelo chat
 
-Texto e áudio (base64). Ver exemplos em [n8n/FLUXO.md](./n8n/FLUXO.md).
+- **Texto:** `messageType`, `type`, `content`, `message`, `sessionId`
+- **Áudio:** o ficheiro é publicado em `/api/audio/upload` e o webhook recebe `audio.url` (HTTPS), não base64
 
-O chat também grava voz pelo microfone (máx. 90s).
+Ver [n8n/SWITCH.md](./n8n/SWITCH.md) e [n8n/FLUXO.md](./n8n/FLUXO.md).
+
+O chat grava voz pelo microfone (máx. 90s). Os áudios expiram após 24h (configurável com `AUDIO_TTL_HOURS`).
+
+### Áudio em desenvolvimento local
+
+O n8n cloud precisa de uma URL **pública**. Com `npm run dev`, use uma destas opções:
+
+1. Testar áudio com o site no **Netlify** (recomendado), ou
+2. Definir `VITE_PUBLIC_BASE_URL` no `.env` com um túnel (ex.: ngrok) para `http://localhost:5173`
 
 ## Build para produção
 
