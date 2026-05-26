@@ -69,10 +69,7 @@ export function useChat() {
         setError(message);
         setMessages((prev) => [
           ...prev,
-          createMessage(
-            "assistant",
-            "Não consegui obter resposta. Confirme se o workflow está publicado e se a credencial OpenAI está configurada."
-          ),
+          createMessage("assistant", message),
         ]);
       } finally {
         setIsLoading(false);

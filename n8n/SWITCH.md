@@ -94,10 +94,13 @@ Switch
 ```javascript
 const body = $json.body ?? $json;
 
-const messageType =
-  body.messageType ??
-  body.type ??
-  (body.audio?.data ? "audio" : "text");
+let messageType = String(
+  body.messageType ?? body.type ?? (body.audio?.data ? "audio" : "text")
+).toLowerCase();
+
+if (messageType !== "text" && messageType !== "audio") {
+  messageType = body.audio?.data ? "audio" : "text";
+}
 
 const content = String(body.content ?? body.message ?? "").trim();
 const sessionId = String(body.sessionId ?? "default");
@@ -107,6 +110,7 @@ return [
   {
     json: {
       messageType,
+      type: messageType,
       content,
       sessionId,
       audio,
@@ -115,7 +119,7 @@ return [
 ];
 ```
 
-Depois disto, o Switch usa sempre `{{ $json.messageType }}`.
+Depois disto, o Switch usa `{{ $json.type }}` ou `{{ $json.messageType }}` (iguais).
 
 ---
 
