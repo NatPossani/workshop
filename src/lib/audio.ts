@@ -1,10 +1,16 @@
+import { normalizeAudioMime } from "../../shared/audioMedia";
+
 const MAX_SECONDS = 90;
 
+/**
+ * Preferir `audio/webm` simples (sem `;codecs=opus`) para evitar metadados
+ * que ferramentas mapeiam para extensão `.weba` — rejeitada pela OpenAI.
+ */
 function pickMimeType(): string {
+  if (MediaRecorder.isTypeSupported("audio/webm")) return "audio/webm";
   if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
     return "audio/webm;codecs=opus";
   }
-  if (MediaRecorder.isTypeSupported("audio/webm")) return "audio/webm";
   if (MediaRecorder.isTypeSupported("audio/mp4")) return "audio/mp4";
   return "";
 }
@@ -50,9 +56,10 @@ export class AudioRecorder {
       const recorder = this.recorder!;
 
       recorder.onstop = () => {
+        const canonical = normalizeAudioMime(this.mimeType);
         const blob =
           this.chunks.length > 0
-            ? new Blob(this.chunks, { type: this.mimeType.split(";")[0] })
+            ? new Blob(this.chunks, { type: canonical })
             : null;
         this.cleanup();
         resolve(blob);
@@ -72,10 +79,4 @@ export class AudioRecorder {
     this.recorder = null;
     this.chunks = [];
   }
-}
-
-export function extensionForMime(mimeType: string): string {
-  if (mimeType.includes("mp4")) return "m4a";
-  if (mimeType.includes("ogg")) return "ogg";
-  return "webm";
 }

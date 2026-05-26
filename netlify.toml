@@ -2,8 +2,12 @@
   command = "npm run build"
   publish = "dist"
 
-# Áudio temporário (Netlify Function — ver netlify/functions/audio.ts)
-# O path é também declarado em export const config no handler.
+# Áudio temporário — function antes do fallback SPA (evita HTML no GET)
+[[redirects]]
+  from = "/api/audio/*"
+  to = "/.netlify/functions/audio"
+  status = 200
+  force = true
 
 # Proxy para o n8n (evita CORS no browser em produção)
 [[redirects]]

@@ -1,5 +1,14 @@
 import type { Config } from "@netlify/functions";
 import { getStore } from "@netlify/blobs";
+import {
+  audioFileNameWithExtension,
+  buildPublicAudioUrl,
+  isWebmContainer,
+  isWavContainer,
+  normalizeAudioMime,
+  parseAudioIdFromPath,
+  serveAudioHeaders,
+} from "../../shared/audioMedia";
 
 const STORE_NAME = "workshop-audio-temp";
 const TTL_MS =
@@ -25,6 +34,21 @@ function isExpired(meta: AudioMeta): boolean {
   return Date.now() - meta.createdAt > TTL_MS;
 }
 
+function validateUploadBody(
+  body: ArrayBuffer,
+  mimeType: string
+): string | null {
+  if (!body.byteLength) return "Corpo vazio.";
+  const canonical = normalizeAudioMime(mimeType);
+  if (canonical === "audio/webm" && !isWebmContainer(body)) {
+    return "Ficheiro não é WebM válido (cabeçalho EBML em falta).";
+  }
+  if (canonical === "audio/wav" && !isWavContainer(body)) {
+    return "Ficheiro não é WAV válido.";
+  }
+  return null;
+}
+
 export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const pathname = url.pathname;
@@ -33,22 +57,24 @@ export default async function handler(req: Request): Promise<Response> {
     return handleUpload(req);
   }
 
-  const match = pathname.match(/\/api\/audio\/([^/]+)$/);
-  if (req.method === "GET" && match) {
-    return handleGet(match[1]);
+  const id = parseAudioIdFromPath(pathname);
+  if (req.method === "GET" && id) {
+    return handleGet(id);
   }
 
   return Response.json({ error: "Método não permitido." }, { status: 405 });
 }
 
 async function handleUpload(req: Request): Promise<Response> {
-  const mimeType = req.headers.get("x-audio-mime-type") ?? "audio/webm";
-  const fileName =
+  const mimeType = normalizeAudioMime(req.headers.get("x-audio-mime-type"));
+  const rawName =
     req.headers.get("x-audio-file-name") ?? `voice-${Date.now()}.webm`;
+  const fileName = audioFileNameWithExtension(rawName, mimeType);
 
   const body = await req.arrayBuffer();
-  if (!body.byteLength) {
-    return Response.json({ error: "Corpo vazio." }, { status: 400 });
+  const validationError = validateUploadBody(body, mimeType);
+  if (validationError) {
+    return Response.json({ error: validationError }, { status: 400 });
   }
 
   const id = crypto.randomUUID();
@@ -68,7 +94,12 @@ async function handleUpload(req: Request): Promise<Response> {
   });
 
   const base = publicBaseUrl(req);
-  return Response.json({ url: `${base}/api/audio/${id}`, id });
+  return Response.json({
+    url: buildPublicAudioUrl(base, id, mimeType),
+    id,
+    mimeType,
+    fileName,
+  });
 }
 
 async function handleGet(id: string): Promise<Response> {
@@ -80,10 +111,15 @@ async function handleGet(id: string): Promise<Response> {
   }
 
   const createdAt = Number(entry.metadata?.createdAt ?? 0);
-  const mimeType = String(entry.metadata?.mimeType ?? "audio/webm");
+  const mimeType = normalizeAudioMime(
+    String(entry.metadata?.mimeType ?? "audio/webm")
+  );
   const meta: AudioMeta = {
     mimeType,
-    fileName: String(entry.metadata?.fileName ?? "voice.webm"),
+    fileName: audioFileNameWithExtension(
+      String(entry.metadata?.fileName ?? "voice.webm"),
+      mimeType
+    ),
     createdAt,
   };
 
@@ -92,15 +128,22 @@ async function handleGet(id: string): Promise<Response> {
     return Response.json({ error: "Áudio expirado." }, { status: 410 });
   }
 
-  return new Response(entry.data, {
-    status: 200,
-    headers: {
-      "Content-Type": mimeType,
-      "Cache-Control": "public, max-age=3600",
-    },
-  });
+  const data = entry.data as ArrayBuffer;
+  const headers = serveAudioHeaders(
+    meta.mimeType,
+    meta.fileName,
+    data.byteLength
+  );
+
+  return new Response(data, { status: 200, headers });
 }
 
 export const config: Config = {
-  path: ["/api/audio/upload", "/api/audio/:id"],
+  path: [
+    "/api/audio/upload",
+    "/api/audio/:id",
+    "/api/audio/:id.webm",
+    "/api/audio/:id.wav",
+    "/api/audio/:id.m4a",
+  ],
 };

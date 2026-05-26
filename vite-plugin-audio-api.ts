@@ -3,6 +3,15 @@ import path from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
 import { randomUUID } from "node:crypto";
+import {
+  audioFileNameWithExtension,
+  buildPublicAudioUrl,
+  isWebmContainer,
+  isWavContainer,
+  normalizeAudioMime,
+  parseAudioIdFromPath,
+  serveAudioHeaders,
+} from "./shared/audioMedia";
 
 const CACHE_DIR = path.resolve(".audio-cache");
 const TTL_MS =
@@ -55,6 +64,18 @@ function isExpired(meta: AudioMeta): boolean {
   return Date.now() - meta.createdAt > TTL_MS;
 }
 
+function validateUploadBody(body: Buffer, mimeType: string): string | null {
+  if (!body.length) return "Corpo vazio.";
+  const canonical = normalizeAudioMime(mimeType);
+  if (canonical === "audio/webm" && !isWebmContainer(body)) {
+    return "Ficheiro não é WebM válido (cabeçalho EBML em falta).";
+  }
+  if (canonical === "audio/wav" && !isWavContainer(body)) {
+    return "Ficheiro não é WAV válido.";
+  }
+  return null;
+}
+
 function purgeExpired() {
   if (!fs.existsSync(CACHE_DIR)) return;
   for (const file of fs.readdirSync(CACHE_DIR)) {
@@ -75,15 +96,18 @@ function purgeExpired() {
 }
 
 async function handleUpload(req: IncomingMessage, res: ServerResponse) {
-  const mimeType =
-    (req.headers["x-audio-mime-type"] as string | undefined) ?? "audio/webm";
-  const fileName =
+  const mimeType = normalizeAudioMime(
+    req.headers["x-audio-mime-type"] as string | undefined
+  );
+  const rawName =
     (req.headers["x-audio-file-name"] as string | undefined) ??
     `voice-${Date.now()}.webm`;
+  const fileName = audioFileNameWithExtension(rawName, mimeType);
 
   const body = await readBody(req);
-  if (!body.length) {
-    sendJson(res, 400, { error: "Corpo vazio." });
+  const validationError = validateUploadBody(body, mimeType);
+  if (validationError) {
+    sendJson(res, 400, { error: validationError });
     return;
   }
 
@@ -100,7 +124,12 @@ async function handleUpload(req: IncomingMessage, res: ServerResponse) {
   fs.writeFileSync(metaPath(id), JSON.stringify(meta));
 
   const base = publicBaseUrl(req);
-  sendJson(res, 200, { url: `${base}/api/audio/${id}`, id });
+  sendJson(res, 200, {
+    url: buildPublicAudioUrl(base, id, mimeType),
+    id,
+    mimeType,
+    fileName,
+  });
 }
 
 function handleGet(id: string, res: ServerResponse) {
@@ -113,6 +142,9 @@ function handleGet(id: string, res: ServerResponse) {
   }
 
   const meta = JSON.parse(fs.readFileSync(metaFile, "utf8")) as AudioMeta;
+  meta.mimeType = normalizeAudioMime(meta.mimeType);
+  meta.fileName = audioFileNameWithExtension(meta.fileName, meta.mimeType);
+
   if (isExpired(meta)) {
     fs.rmSync(metaFile, { force: true });
     fs.rmSync(dataFile, { force: true });
@@ -121,10 +153,16 @@ function handleGet(id: string, res: ServerResponse) {
   }
 
   const data = fs.readFileSync(dataFile);
+  const headers = serveAudioHeaders(
+    meta.mimeType,
+    meta.fileName,
+    data.length
+  );
+
   res.statusCode = 200;
-  res.setHeader("Content-Type", meta.mimeType);
-  res.setHeader("Content-Length", data.length);
-  res.setHeader("Cache-Control", "public, max-age=3600");
+  for (const [key, value] of Object.entries(headers)) {
+    res.setHeader(key, value);
+  }
   res.end(data);
 }
 
@@ -149,9 +187,9 @@ export function audioApiPlugin(): Plugin {
               return;
             }
 
-            const match = pathname.match(/^\/api\/audio\/([^/]+)$/);
-            if (req.method === "GET" && match) {
-              handleGet(match[1], res);
+            const id = parseAudioIdFromPath(pathname);
+            if (req.method === "GET" && id) {
+              handleGet(id, res);
               return;
             }
 

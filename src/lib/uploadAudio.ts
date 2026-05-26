@@ -1,15 +1,24 @@
+import {
+  audioFileNameWithExtension,
+  normalizeAudioMime,
+} from "../../shared/audioMedia";
+
 const UPLOAD_PATH = "/api/audio/upload";
 
 export async function uploadAudio(
   blob: Blob,
-  fileName: string
+  fileName: string,
+  mimeType?: string
 ): Promise<string> {
+  const canonical = normalizeAudioMime(mimeType ?? blob.type);
+  const safeName = audioFileNameWithExtension(fileName, canonical);
+
   const response = await fetch(UPLOAD_PATH, {
     method: "POST",
     headers: {
       "Content-Type": "application/octet-stream",
-      "X-Audio-Mime-Type": blob.type || "audio/webm",
-      "X-Audio-File-Name": fileName,
+      "X-Audio-Mime-Type": canonical,
+      "X-Audio-File-Name": safeName,
     },
     body: blob,
   });

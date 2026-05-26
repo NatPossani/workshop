@@ -30,7 +30,7 @@ Guia para o **Switch** no n8n, alinhado ao JSON que **este chat** envia.
   "message": "",
   "sessionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "audio": {
-    "url": "https://worshopn8n.netlify.app/api/audio/550e8400-e29b-41d4-a716-446655440000",
+    "url": "https://worshopn8n.netlify.app/api/audio/550e8400-e29b-41d4-a716-446655440000.webm",
     "mimeType": "audio/webm",
     "fileName": "voice-1716638400000.webm"
   }
